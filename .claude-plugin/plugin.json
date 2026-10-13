@@ -1,0 +1,7 @@
+{
+  "name": "write-as-me",
+  "description": "Write emails, messages and posts in your own voice (or a public writer's) with a small fine-tuned writer model instead of the assistant's own prose.",
+  "version": "0.1.0",
+  "author": { "name": "sbier060" },
+  "keywords": ["writing", "voice", "style", "email"]
+}

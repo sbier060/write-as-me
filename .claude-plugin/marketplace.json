@@ -1,0 +1,11 @@
+{
+  "name": "write-as-me",
+  "owner": { "name": "sbier060" },
+  "plugins": [
+    {
+      "name": "write-as-me",
+      "source": "./",
+      "description": "Write in your own voice with a small fine-tuned writer model."
+    }
+  ]
+}
