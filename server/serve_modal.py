@@ -1,12 +1,11 @@
-"""Serve the Voiceify writer: one HTTPS endpoint that turns a writer prompt
-(src/lib/writer.ts) into N candidate messages.
+"""Serve the writer: one HTTPS endpoint that turns a writer prompt
+(the one in skills/write-as-me/write.mjs) into N candidate messages.
 
-    modal deploy scripts/writer/serve_modal.py        # prints the URL
-    WRITER_BASE=Qwen/Qwen2.5-7B-Instruct modal deploy scripts/writer/serve_modal.py
+    modal deploy server/serve_modal.py        # prints the URL
+    WRITER_BASE=Qwen/Qwen2.5-7B-Instruct modal deploy server/serve_modal.py
 
-INTERNAL ONLY while the adapter is the Enron-trained one: that data is a
-proof of concept and nothing trained on it ships to users. The app only calls
-this for admin accounts (WRITER_URL + ADMIN_EMAILS).
+The reference shared adapter was trained on the Enron corpus as a proof of
+concept: keep an endpoint serving it to personal use.
 
 The GPU sleeps after 15 idle minutes (no fixed cost); the first request after
 that waits for the model to load (~40 s for 1.5B). Requests must carry the
@@ -17,7 +16,7 @@ import os
 
 import modal
 
-# 7B is what the size comparison picked (2026-10-05, docs/writer + CLAUDE.md):
+# 7B is what the size comparison picked (2026-10-05):
 # quality 4.71 vs 4.50 for real mail, preferred over the current method 86%,
 # Apache-2.0. 1.5B and 3B adapters are on the volume too; WRITER_BASE swaps.
 BASE = os.environ.get("WRITER_BASE", "Qwen/Qwen2.5-7B-Instruct")

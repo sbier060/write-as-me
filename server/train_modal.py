@@ -1,4 +1,4 @@
-"""Train and run the MyModel writer on a rented GPU (Modal).
+"""Train and run the writer on a rented GPU (Modal).
 
 The writer is a small open-weight model with LoRA adapters:
   shared   one adapter trained on many real people's mail — learns the task
@@ -7,17 +7,17 @@ The writer is a small open-weight model with LoRA adapters:
            mail. That copy is their adapter: their voice in weights, not in a
            prompt.
 
-    modal run scripts/writer/train_modal.py::upload --data-dir <outdir of dataset.mts>
-    modal run scripts/writer/train_modal.py::train_shared
-    modal run scripts/writer/train_modal.py::train_users
-    modal run scripts/writer/train_modal.py::exam --out exam-out.jsonl
+    modal run server/train_modal.py::upload --data-dir <outdir of dataset.mts>
+    modal run server/train_modal.py::train_shared
+    modal run server/train_modal.py::train_users
+    modal run server/train_modal.py::exam --out exam-out.jsonl
 
 exam writes, for every hidden message, what the writer produced three ways:
   shared     shared adapter + the person's messages in the prompt
   personal   that person's own adapter (unseen authors only)
   base       the untrained base model, same prompt — the control
 Nothing here replaces the product's current method; the outputs are scored
-against it by scripts/writer/ab.mts.
+against it separately.
 
 UNTESTED until a Modal account exists: written 2026-10-05 without a GPU to
 run it on. Expect to fix small things on first run.
@@ -47,7 +47,7 @@ MAX_TOKENS = int(os.environ.get("WRITER_MAX_TOKENS", "1536"))
 # Enron set; a second set (e.g. one essayist) uploads beside it.
 DATA = os.environ.get("WRITER_DATA", "data")
 # Candidates per exam row. With K > 1 the exam also returns "<arm>_k": every
-# sample, so a meaning checker can choose among them (scripts/writer/verify.mts).
+# sample, so a meaning checker can choose among them.
 K = int(os.environ.get("WRITER_K", "1"))
 
 
@@ -94,8 +94,7 @@ def _train(rows, out, init=None, epochs=2, lr=2e-4):
     tok, model = _load(init, trainable=True)
     model.print_trainable_parameters()
     # LoRA on every linear layer keeps ~1 GB of activations per layer at
-    # 4 x 1,500 tokens; checkpointing recomputes them instead (fix found by the
-    # "Claude Chrome extension modal" session, commit 92a1014: peak 4.5 GB).
+    # 4 x 1,500 tokens; checkpointing recomputes them instead (peak 4.5 GB).
     model.gradient_checkpointing_enable()
     model.enable_input_require_grads()
     model.config.use_cache = False

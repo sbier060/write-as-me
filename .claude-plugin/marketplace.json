@@ -1,11 +1,16 @@
 {
   "name": "write-as-me",
-  "owner": { "name": "sbier060" },
+  "owner": {
+    "name": "sbier060"
+  },
   "plugins": [
     {
       "name": "write-as-me",
       "source": "./",
       "description": "Write in your own voice with a small fine-tuned writer model."
     }
-  ]
+  ],
+  "metadata": {
+    "description": "A skill that writes in your own voice with a small fine-tuned writer model."
+  }
 }
