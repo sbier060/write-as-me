@@ -45,6 +45,13 @@ how to get one. Do not write the text yourself instead.
      appear. The writer copies these verbatim.
    - Notes are flat and short ("can't make Thursday, offer Friday morning").
      Do not write nice sentences in the notes; the writer will copy them.
+   - `to` is copied into the text if you are careless with it. For a chat
+     message (Slack, text, DM) with no named recipient, leave `to` out and
+     end `purpose` with "(a chat message, no greeting)". With `to` set to
+     "cofounder, in a Slack DM", the writer opened with "Hey cofounder," and
+     "My cofounder, in a Slack DM:". Use `to` for email, with `recipientName`.
+   - Say who does what in each note ("he should...", "I will..."): the writer
+     sometimes swaps "you" and "I".
    - Only what they told you or what the source material says. Add nothing: no
      pleasantries, no reasons, no offers they did not ask for.
    - One plan is one short piece: about 20 to 150 words, 2 to 6 items. The
@@ -62,6 +69,9 @@ how to get one. Do not write the text yourself instead.
    - missing: a plan point or fact is absent (`missingFacts` must be empty)
    - changed: a point's meaning shifted (watch near-synonyms: "postponed"
      for "moved", a different day, a softened commitment)
+
+   Also reject a candidate that addresses a label instead of a person
+   ("Hey cofounder", "@teammate") or swaps who is doing what.
 
    Greetings and sign-offs are style, not content.
 
