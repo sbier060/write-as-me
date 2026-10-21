@@ -57,8 +57,14 @@ node skills/write-as-me/write.mjs fetch paul-graham
 ```
 
 downloads Paul Graham's essays from paulgraham.com to your machine and cuts
-them into paragraphs. Then "write this like Paul Graham" uses them. For anyone
-else, collect what they wrote and `add <file> --voice <name>`.
+them into paragraphs. Then "write this like Paul Graham" uses them.
+
+Public-domain writers work the same way, from old editions on Project
+Gutenberg (Hopkins from a 1927 library scan): `claude-hopkins`, `pt-barnum`,
+`benjamin-franklin`, `mark-twain`, `ralph-waldo-emerson`,
+`henry-david-thoreau`, `oscar-wilde`, `abraham-lincoln`, `theodore-roosevelt`,
+`marcus-aurelius`, `seneca`. For anyone else, collect what they wrote and
+`add <file> --voice <name>`.
 
 This borrows a style. Do not sign as the other person or present the result as
 something they wrote.
