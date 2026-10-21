@@ -106,6 +106,13 @@ to write "as" or "like" that person.
 - `node write.mjs fetch paul-graham` downloads his essays from his own site
   (about two minutes, once) and cuts them into paragraphs. Run it the first
   time that voice is asked for. The text stays on this machine.
+- Public-domain writers fetch the same way, in seconds, from old editions of
+  their books: `claude-hopkins`, `pt-barnum`, `benjamin-franklin`,
+  `mark-twain`, `ralph-waldo-emerson`, `henry-david-thoreau`, `oscar-wilde`,
+  `abraham-lincoln`, `theodore-roosevelt`, `marcus-aurelius`, `seneca`.
+  `fetch` with no name lists them. Do not add a writer whose work is still in
+  copyright (in the US, anything published from 1931 on) or whose estate
+  licenses the name; for a translated writer, only an old translation.
 - A voice folder with `voice.json` (`{"adapter": "pg-essay"}`) also uses an
   adapter trained on that writer, when the endpoint has it. For a new voice, collect 30+ passages of 40 to 160
 words that the person really wrote and `add` them with `--voice <name>`.

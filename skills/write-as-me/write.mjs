@@ -4,7 +4,7 @@
 //
 //   node write.mjs --plan plan.json [--n 6] [--fix fix.json]   candidates as JSON
 //   node write.mjs add <file|->                                 add real writing (samples split on a line of ---)
-//   node write.mjs fetch paul-graham                            download a public writer's posts as a voice (stays on this machine)
+//   node write.mjs fetch <paul-graham|mark-twain|...>           download a public writer's work as a voice (stays on this machine; no name lists them)
 //   node write.mjs samples                                      how much writing it has
 //   --voice <name> on any of these: someone else's voice, from ~/.config/mymodel/voices/<name>/
 //   node write.mjs warm                                         wake the GPU (it sleeps after 15 idle minutes)
@@ -85,8 +85,33 @@ const readJson = (f) => JSON.parse(f === "-" ? fs.readFileSync(0, "utf8") : fs.r
 
 // Public writers whose posts can be fetched as a voice. The text is downloaded
 // from the writer's own site to this machine and is never redistributed.
+//
+// The `texts` voices are public domain in the US: published before 1931, by
+// writers dead long enough that no estate licenses the name. Books come from
+// Project Gutenberg's own mirror (gutenberg.pglaf.org: Gutenberg asks scripts
+// to use it, not the main site), which only hosts texts out of US copyright. Translations are the
+// old ones on purpose: a modern translation has its own copyright, so never
+// swap in a newer edition. Hopkins is not on Gutenberg; his is the library scan
+// of the 1927 first edition. Anyone added here must pass the same test.
+//
+// `from` and `to` cut a book down to the writer's own words: from the last line
+// starting with `from` (past any table of contents) up to the first line
+// starting with `to` (an editor's appendix, an index). Keep editors'
+// introductions and dialogues with speaker tags out: they teach the wrong voice.
+const book = (id, from, to) => ({ url: `https://gutenberg.pglaf.org/cache/epub/${id}/pg${id}.txt`, from, to });
 const SOURCES = {
   "paul-graham": { index: "https://paulgraham.com/articles.html", base: "https://paulgraham.com/", skip: ["index.html", "articles.html", "rss.html", "bio.html", "faq.html"], adapter: "pg-essay" },
+  "claude-hopkins": { texts: [{ url: "https://archive.org/download/mylifeinadverti00unkngoog/mylifeinadverti00unkngoog_djvu.txt", from: "THIS book is not written" }] }, // My Life in Advertising, 1927
+  "pt-barnum": { texts: [book(8581)] }, // The Art of Money Getting, 1880
+  "benjamin-franklin": { texts: [book(148, "Dear Son:")] }, // Autobiography
+  "mark-twain": { texts: [book(3176), book(2895)] }, // The Innocents Abroad; Following the Equator
+  "ralph-waldo-emerson": { texts: [book(2944), book(2945)] }, // Essays, First and Second Series
+  "henry-david-thoreau": { texts: [book(205)] }, // Walden; Civil Disobedience
+  "oscar-wilde": { texts: [book(1017), book(921)] }, // The Soul of Man under Socialism; De Profundis
+  "abraham-lincoln": { texts: [book(14721, "LINCOLN'S SPEECHES AND LETTERS", "ANECDOTES")] }, // Speeches & Letters, 1832-1865
+  "theodore-roosevelt": { texts: [book(58821, "THE STRENUOUS LIFE")] }, // The Strenuous Life
+  "marcus-aurelius": { texts: [book(15877, "THE THOUGHTS", "INDEXES.")] }, // George Long's 1862 translation
+  "seneca": { texts: [book(64576), book(3794)] }, // Minor Dialogues; On Benefits; Aubrey Stewart's 1887-1889 translations
 };
 const decode = (s) => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&rsquo;|&lsquo;/g, "'").replace(/&rdquo;|&ldquo;/g, '"').replace(/&mdash;/g, "—");
 function essayText(html) {
@@ -98,10 +123,49 @@ function essayText(html) {
   text = text.split(/\n\s*(Notes|Thanks to|Related:|Translations?:|Japanese Translation)\b/)[0].replace(/\[\d+\]/g, "").trim();
   return text.replace(/([^\n])\n(?!\n)/g, "$1 ").replace(/ {2,}/g, " ");
 }
+// A plain-text book cut into paragraphs: Gutenberg's licence header and footer
+// off, OCR page furniture out, words split across lines and paragraphs split
+// across scanned pages joined back up.
+function bookParas(raw, { from, to } = {}) {
+  let text = raw.replace(/\r/g, "");
+  const start = text.search(/^\*\*\* ?START OF/m), end = text.search(/^\*\*\* ?END OF/m);
+  if (start >= 0) text = text.slice(text.indexOf("\n", start) + 1, end > start ? end : undefined);
+  const lines = text.split("\n");
+  const first = from ? lines.findLastIndex((l) => l.startsWith(from)) : -1;
+  if (from && first < 0) fail(`"${from}" not found: the edition may have changed.`);
+  const last = to ? lines.findIndex((l, i) => i > first && l.startsWith(to)) : -1;
+  text = lines.slice(Math.max(first, 0), last > first ? last : undefined).join("\n");
+  text = text.replace(/^.*Digitized by.*$|^\s*Google\s*$/gm, "").replace(/(\w)- ?\n\s*(\w)/g, "$1$2");
+  const chunks = [];
+  for (const c of text.split(/\n\s*\n/)) {
+    const lns = c.split("\n").filter((l) => l.trim());
+    if (!lns.length) continue;
+    // Verse (epigraphs, quoted poems) is set in short lines; it is not the voice.
+    if (lns.length >= 3 && lns.reduce((n, l) => n + l.trim().length, 0) / lns.length < 50) continue;
+    const p = c.replace(/\s+/g, " ").trim();
+    if (/^[a-z]/.test(p) && chunks.length) chunks[chunks.length - 1] += " " + p; // a page break mid-sentence
+    else chunks.push(p);
+  }
+  // Section numbers and footnote marks off; headings, chapter synopses, tables
+  // of contents, licence text and scan noise are not the voice.
+  return chunks.map((p) => /^\[/.test(p) ? "" : p.replace(/^([IVXLC]+|\d+)\. /, "").replace(/\[[A-Z0-9]{1,3}\]/g, "")).filter((p) => {
+    const n = p.split(" ").length, letters = p.replace(/[^a-z]/gi, "").length;
+    return n >= 40 && n <= 160 && letters / p.length > 0.7 && !/^chapter\b|gutenberg|google/i.test(p) && p !== p.toUpperCase();
+  });
+}
 async function fetchVoice(name) {
   const src = SOURCES[name];
   if (!src) fail(`No built-in source for "${name}". Known: ${Object.keys(SOURCES).join(", ")}. For anyone else, collect what they wrote and use: add <file> --voice ${name}`);
   const dir = path.join(CONF, "voices", name), ua = "write-as-me/1.0 (personal style samples)";
+  if (src.texts) {
+    const paras = [];
+    for (const t of src.texts) {
+      const r = await fetch(t.url, { headers: { "user-agent": ua } }).catch(() => undefined);
+      if (!r?.ok) fail(`Could not download ${t.url} (${r?.status ?? "network error"}).`);
+      paras.push(...bookParas(await r.text(), t));
+    }
+    return saveVoice(name, dir, src, paras);
+  }
   const index = await (await fetch(src.index, { headers: { "user-agent": ua } })).text();
   const links = [...new Set([...index.matchAll(/href="([a-z0-9_-]+\.html)"/gi)].map((m) => m[1]))].filter((l) => !src.skip.includes(l));
   const paras = [];
@@ -114,7 +178,10 @@ async function fetchVoice(name) {
     if (i % 25 === 24) console.error(`${i + 1}/${links.length} pages · ${paras.length} paragraphs`);
     await new Promise((res) => setTimeout(res, 400)); // one request at a time, politely
   }
-  if (paras.length < 30) fail(`Only ${paras.length} paragraphs found: the site's layout may have changed.`);
+  saveVoice(name, dir, src, paras);
+}
+function saveVoice(name, dir, src, paras) {
+  if (paras.length < 30) fail(`Only ${paras.length} paragraphs found: the source's layout may have changed.`);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "posts.txt"), paras.join("\n---\n") + "\n");
   if (src.adapter && !fs.existsSync(path.join(dir, "voice.json"))) fs.writeFileSync(path.join(dir, "voice.json"), JSON.stringify({ adapter: src.adapter }) + "\n");
